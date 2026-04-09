@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+{% block title %}Configuración de Presupuesto — Kairos Stock{% endblock %}
+{% block page_title %}Cabecera de Presupuesto{% endblock %}
+{% block page_subtitle %}Logo y datos de la empresa que aparecen en el PDF{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('budgets.budgets') }}" class="btn btn-outline">
+    <i class="fas fa-arrow-left"></i> Volver
+  </a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .config-layout { display:grid; grid-template-columns:1fr 380px; gap:1.25rem; align-items:start; }
+  @media(max-width:900px){ .config-layout{ grid-template-columns:1fr; } }
+
+  .logo-drop { border:2px dashed var(--border); border-radius:12px; padding:2rem; text-align:center;
+    cursor:pointer; transition:.2s; background:var(--surface); position:relative; }
+  .logo-drop:hover, .logo-drop.drag-over { border-color:var(--brand); background:var(--brand-bg); }
+  .logo-drop input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
+  .logo-preview { max-width:220px; max-height:100px; object-fit:contain; border-radius:8px;
+    border:1px solid var(--border); background:#fff; padding:4px; margin:0 auto; display:block; }
+
+  .preview-card { background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:1.25rem; }
+  .preview-header { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:.75rem; }
+  .preview-logo { max-height:56px; max-width:140px; object-fit:contain; }
+  .preview-title { font-size:1.4rem; font-weight:800; color:var(--text); }
+  .preview-number { font-size:.85rem; color:var(--text-muted); }
+  .preview-divider { height:3px; background:var(--brand); border-radius:2px; margin-bottom:.75rem; }
+  .preview-company { font-size:.82rem; color:var(--text-muted); line-height:1.6; }
+  .preview-company strong { color:var(--text); font-size:.95rem; }
+  .preview-footer { margin-top:1rem; padding-top:.5rem; border-top:1px solid var(--border);
+    font-size:.75rem; color:var(--text-muted); text-align:center; font-style:italic; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="alert alert-{{ cat }}" style="margin-bottom:1rem">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<form method="POST" id="configForm">
+<div class="config-layout">
+
+  <!-- LEFT: form fields -->
+  <div style="display:flex;flex-direction:column;gap:1rem">
+
+    <!-- Logo -->
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="fas fa-image"></i> Logo de la Empresa</span></div>
+      <div class="card-body">
+        <div class="logo-drop" id="logoDrop">
+          <input type="file" id="logoFile" accept="image/png,image/jpeg,image/jpg,image/webp" onchange="handleLogoFile(this)">
+          {% if cfg.empresa_logo %}
+            <img src="{{ cfg.empresa_logo }}" class="logo-preview" id="logoPreviewImg" alt="Logo actual">
+            <div style="margin-top:.6rem;font-size:.8rem;color:var(--text-muted)">Hacé clic o arrastrá para cambiar</div>
+          {% else %}
+            <div id="logoPlaceholder">
+              <i class="fas fa-cloud-upload-alt" style="font-size:2rem;color:var(--brand);margin-bottom:.5rem;display:block"></i>
+              <div style="font-weight:600;margin-bottom:.2rem">Subir logo</div>
+              <div style="font-size:.8rem;color:var(--text-muted)">PNG, JPG o WEBP — máx. 2 MB</div>
+            </div>
+            <img src="" class="logo-preview" id="logoPreviewImg" alt="" style="display:none">
+          {% endif %}
+        </div>
+        <input type="hidden" name="empresa_logo_b64" id="logoB64">
+
+        <div style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem">
+          <input type="checkbox" id="mostrarLogo" name="mostrar_logo" {% if cfg.mostrar_logo %}checked{% endif %}
+            style="width:16px;height:16px;accent-color:var(--brand)" onchange="updatePreview()">
+          <label for="mostrarLogo" style="font-size:.875rem;font-weight:500">Mostrar logo en el PDF</label>
+        </div>
+
+        {% if cfg.empresa_logo %}
+        <div style="margin-top:.6rem">
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--danger);cursor:pointer">
+            <input type="checkbox" name="remove_logo" value="1" onchange="if(this.checked){document.getElementById('logoPreviewImg').src='';document.getElementById('logoPreviewImg').style.display='none'; updatePreview();}">
+            Eliminar logo actual
+          </label>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Company data -->
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="fas fa-building"></i> Datos de la Empresa</span></div>
+      <div class="card-body">
+        <div class="form-group mb-2">
+          <label class="form-label">Nombre de la Empresa *</label>
+          <input type="text" name="empresa_nombre" class="form-control"
+            value="{{ cfg.empresa_nombre }}" placeholder="Mi Empresa S.A." oninput="updatePreview()">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">CUIT</label>
+            <input type="text" name="empresa_cuit" class="form-control"
+              value="{{ cfg.empresa_cuit }}" placeholder="20-12345678-9" oninput="updatePreview()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono</label>
+            <input type="text" name="empresa_telefono" class="form-control"
+              value="{{ cfg.empresa_telefono }}" placeholder="+54 9 351 000-0000" oninput="updatePreview()">
+          </div>
+        </div>
+        <div class="form-group mb-2">
+          <label class="form-label">Dirección</label>
+          <input type="text" name="empresa_direccion" class="form-control"
+            value="{{ cfg.empresa_direccion }}" placeholder="Av. Ejemplo 1234, Córdoba" oninput="updatePreview()">
+        </div>
+        <div class="form-group mb-2">
+          <label class="form-label">Email</label>
+          <input type="email" name="empresa_email" class="form-control"
+            value="{{ cfg.empresa_email }}" placeholder="contacto@empresa.com" oninput="updatePreview()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer text -->
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="fas fa-align-center"></i> Pie de Página del PDF</span></div>
+      <div class="card-body">
+        <textarea name="pie_texto" class="form-control" rows="2"
+          placeholder="Gracias por su preferencia. Válido por 30 días." oninput="updatePreview()">{{ cfg.pie_texto }}</textarea>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.4rem">Este texto aparece al final del PDF del presupuesto.</div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="justify-content:center">
+      <i class="fas fa-save"></i> Guardar Configuración
+    </button>
+  </div>
+
+  <!-- RIGHT: live preview -->
+  <div style="position:sticky;top:80px">
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="fas fa-eye"></i> Vista Previa del PDF</span></div>
+      <div class="card-body">
+        <div class="preview-card">
+          <div class="preview-header">
+            <div>
+              <img src="" id="pvLogo" class="preview-logo" style="display:none;margin-bottom:.4rem" alt="Logo">
+              <div id="pvCompanyName" class="preview-company"><strong></strong></div>
+              <div id="pvCuit" class="preview-company"></div>
+              <div id="pvDir" class="preview-company"></div>
+              <div id="pvTel" class="preview-company"></div>
+              <div id="pvEmail" class="preview-company"></div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="preview-title">PRESUPUESTO</div>
+              <div class="preview-number">N° PRES-0001</div>
+            </div>
+          </div>
+          <div class="preview-divider"></div>
+          <div style="font-size:.78rem;color:var(--text-muted)">
+            <div style="display:flex;gap:1rem;margin-bottom:.4rem">
+              <div><span style="font-weight:700;color:var(--brand);font-size:.68rem">CLIENTE</span><br>Cliente Ejemplo</div>
+              <div><span style="font-weight:700;color:var(--brand);font-size:.68rem">FECHA</span><br>{{ '%d/%m/%Y'|format_date if False else '01/01/2025' }}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.75rem;margin-top:.5rem">
+              <thead><tr style="background:var(--brand);color:#fff">
+                <th style="padding:.3rem .5rem;text-align:left">#</th>
+                <th style="padding:.3rem .5rem;text-align:left">Descripción</th>
+                <th style="padding:.3rem .5rem;text-align:right">Cant.</th>
+                <th style="padding:.3rem .5rem;text-align:right">Precio</th>
+                <th style="padding:.3rem .5rem;text-align:right">Sub.</th>
+              </tr></thead>
+              <tbody>
+                <tr style="background:#f8fafc"><td style="padding:.25rem .5rem">1</td><td>Producto ejemplo</td><td style="text-align:right">2</td><td style="text-align:right">$500</td><td style="text-align:right">$1.000</td></tr>
+                <tr><td style="padding:.25rem .5rem">2</td><td>Servicio consultoría</td><td style="text-align:right">1</td><td style="text-align:right">$3.000</td><td style="text-align:right">$3.000</td></tr>
+              </tbody>
+            </table>
+            <div style="text-align:right;margin-top:.5rem;font-weight:700;color:var(--brand)">TOTAL: $4.000,00</div>
+          </div>
+          <div class="preview-footer" id="pvFooter"></div>
+        </div>
+        <div style="font-size:.75rem;color:var(--text-muted);text-align:center;margin-top:.6rem">
+          <i class="fas fa-info-circle"></i> Vista aproximada — el PDF real puede variar levemente
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Drag & drop on logo area
+const logoDrop = document.getElementById('logoDrop');
+logoDrop.addEventListener('dragover', e => { e.preventDefault(); logoDrop.classList.add('drag-over'); });
+logoDrop.addEventListener('dragleave', () => logoDrop.classList.remove('drag-over'));
+logoDrop.addEventListener('drop', e => {
+  e.preventDefault(); logoDrop.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processLogoFile(file);
+});
+
+function handleLogoFile(input) {
+  if (input.files && input.files[0]) processLogoFile(input.files[0]);
+}
+
+function processLogoFile(file) {
+  if (!file.type.startsWith('image/')) { alert('Solo se admiten imágenes (PNG, JPG, WEBP)'); return; }
+  if (file.size > 2 * 1024 * 1024) { alert('El archivo no puede superar 2 MB'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result;
+    document.getElementById('logoB64').value = b64;
+    const img = document.getElementById('logoPreviewImg');
+    img.src = b64; img.style.display = 'block';
+    const ph = document.getElementById('logoPlaceholder');
+    if (ph) ph.style.display = 'none';
+    updatePreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+function updatePreview() {
+  const logoB64 = document.getElementById('logoB64').value
+    || document.getElementById('logoPreviewImg').src;
+  const mostrar = document.getElementById('mostrarLogo').checked;
+  const pvLogo  = document.getElementById('pvLogo');
+
+  if (mostrar && logoB64 && logoB64.startsWith('data:')) {
+    pvLogo.src = logoB64; pvLogo.style.display = 'block';
+  } else {
+    pvLogo.style.display = 'none';
+  }
+
+  const nombre    = document.querySelector('[name=empresa_nombre]').value;
+  const cuit      = document.querySelector('[name=empresa_cuit]').value;
+  const dir       = document.querySelector('[name=empresa_direccion]').value;
+  const tel       = document.querySelector('[name=empresa_telefono]').value;
+  const email     = document.querySelector('[name=empresa_email]').value;
+  const pie       = document.querySelector('[name=pie_texto]').value;
+
+  document.getElementById('pvCompanyName').innerHTML = nombre ? `<strong>${nombre}</strong>` : '';
+  document.getElementById('pvCuit').textContent  = cuit  ? `CUIT: ${cuit}`   : '';
+  document.getElementById('pvDir').textContent   = dir   ? `Dir: ${dir}`     : '';
+  document.getElementById('pvTel').textContent   = tel   ? `Tel: ${tel}`     : '';
+  document.getElementById('pvEmail').textContent = email ? `Email: ${email}` : '';
+  document.getElementById('pvFooter').textContent = pie;
+}
+
+// Init preview on load
+updatePreview();
+</script>
+{% endblock %}

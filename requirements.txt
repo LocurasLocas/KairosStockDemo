@@ -1,0 +1,9 @@
+flask
+flask-sqlalchemy
+flask-login
+flask-mail
+werkzeug
+reportlab
+openpyxl
+gunicorn
+psycopg2-binary
