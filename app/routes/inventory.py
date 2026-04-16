@@ -46,6 +46,10 @@ def new_product():
             flash('Los valores numéricos son inválidos.', 'error')
             return redirect(url_for('inventory.new_product'))
 
+        try:
+            discount_pct = float(request.form.get('discount_pct') or 0)
+        except (ValueError, TypeError):
+            discount_pct = 0.0
         product = Product(
             name=name,
             sku=request.form.get('sku') or None,
@@ -53,7 +57,11 @@ def new_product():
             category_id=request.form.get('category_id') or None,
             price=price, cost=cost, stock=stock,
             min_stock=min_stock,
-            unit=request.form.get('unit', 'unidad')
+            unit=request.form.get('unit', 'unidad'),
+            image_url=request.form.get('image_url', '').strip(),
+            discount_pct=discount_pct,
+            promo_label=request.form.get('promo_label', '').strip(),
+            promo_active='promo_active' in request.form,
         )
         db.session.add(product)
         db.session.flush()
@@ -92,6 +100,13 @@ def edit_product(id):
         product.description = request.form.get('description', '')
         product.category_id = request.form.get('category_id') or None
         product.unit = request.form.get('unit', 'unidad')
+        product.image_url = request.form.get('image_url', '').strip()
+        product.promo_label = request.form.get('promo_label', '').strip()
+        product.promo_active = 'promo_active' in request.form
+        try:
+            product.discount_pct = float(request.form.get('discount_pct') or 0)
+        except (ValueError, TypeError):
+            product.discount_pct = 0.0
         product.updated_at = utcnow()
         db.session.commit()
         flash('Producto actualizado.', 'success')

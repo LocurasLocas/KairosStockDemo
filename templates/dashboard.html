@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}Panel Principal — Kairos Stock{% endblock %}
-{% block page_title %}Panel Principal{% endblock %}
-{% block page_subtitle %}Resumen general del inventario{% endblock %}
+{% block title %}Panel Principal — Fogo{% endblock %}
+{% block page_title %}🔥 Panel Principal{% endblock %}
+{% block page_subtitle %}Resumen general del negocio{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   .welcome-banner {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, #7f1a0a, #c0392b, #f39c12);
     border-radius: var(--radius); padding: 1.5rem;
     color: white; margin-bottom: 1.5rem;
     display: flex; align-items: center; justify-content: space-between;
@@ -36,16 +36,16 @@
 {% block content %}
 <div class="welcome-banner">
   <div>
-    <h2>¡Hola, {{ current_user.username }}! 👋</h2>
-    <p>Aquí está el resumen de tu inventario al día de hoy.</p>
+    <h2>¡Hola, {{ current_user.username }}! 🔥</h2>
+    <p>Aquí está el resumen de Fogo al día de hoy.</p>
   </div>
   <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
     {% if current_user.can_edit() %}
-    <a href="{{ url_for('inventory.export_products_excel') }}" class="btn btn-outline" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:white;font-size:.8rem" title="Exportar productos a Excel">
-      <i class="fas fa-file-excel"></i> Productos
+    <a href="{{ url_for('inventory.new_product') }}" class="btn btn-outline" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:white;font-size:.8rem">
+      <i class="fas fa-plus"></i> Nuevo Producto
     </a>
-    <a href="{{ url_for('budgets.export_budgets_excel') }}" class="btn btn-outline" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:white;font-size:.8rem" title="Exportar presupuestos y clientes a Excel">
-      <i class="fas fa-file-excel"></i> Presupuestos
+    <a href="{{ url_for('delivery.delivery_apps') }}" class="btn btn-outline" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:white;font-size:.8rem">
+      <i class="fas fa-motorcycle"></i> Delivery
     </a>
     {% endif %}
     {% if current_user.is_admin() %}
@@ -53,37 +53,37 @@
       <i class="fas fa-users"></i> Monitor Staff
     </a>
     {% endif %}
-    <div class="welcome-icon"><i class="fas fa-chart-line"></i></div>
+    <div class="welcome-icon"><i class="fas fa-burger"></i></div>
   </div>
 </div>
 
 <div class="stat-grid">
   <div class="stat-card">
-    <div class="stat-icon" style="background:#eef2ff;color:#6366f1"><i class="fas fa-box"></i></div>
+    <div class="stat-icon" style="background:#2a0e0e;color:#e74c3c"><i class="fas fa-burger"></i></div>
     <div>
       <div class="stat-value">{{ total_products }}</div>
-      <div class="stat-label">Productos activos</div>
+      <div class="stat-label">Productos en menú</div>
     </div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="background:#f0fdf4;color:#10b981"><i class="fas fa-tags"></i></div>
+    <div class="stat-icon" style="background:#0e2a1a;color:#10b981"><i class="fas fa-tags"></i></div>
     <div>
       <div class="stat-value">{{ total_categories }}</div>
       <div class="stat-label">Categorías</div>
     </div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="background:#fff7ed;color:#f59e0b"><i class="fas fa-triangle-exclamation"></i></div>
+    <div class="stat-icon" style="background:#2a1e0e;color:#f59e0b"><i class="fas fa-triangle-exclamation"></i></div>
     <div>
       <div class="stat-value">{{ low_stock_products|length }}</div>
       <div class="stat-label">Stock bajo</div>
     </div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="background:#eff6ff;color:#3b82f6"><i class="fas fa-dollar-sign"></i></div>
+    <div class="stat-icon" style="background:#0e1a2a;color:#3b82f6"><i class="fas fa-dollar-sign"></i></div>
     <div>
       <div class="stat-value mono">${{ "%.0f"|format(total_stock_value) }}</div>
-      <div class="stat-label">Valor total inventario</div>
+      <div class="stat-label">Valor inventario</div>
     </div>
   </div>
 </div>
@@ -147,28 +147,29 @@
 
 <div class="card">
   <div class="card-header">
-    <span class="card-title">Últimos Presupuestos</span>
-    <a href="{{ url_for('budgets.new_budget') }}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Nuevo</a>
+    <span class="card-title">🛵 Apps de Delivery</span>
+    <a href="{{ url_for('delivery.delivery_apps') }}" class="btn btn-primary btn-sm"><i class="fas fa-sliders"></i> Gestionar</a>
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>N°</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
+      <thead><tr><th>App</th><th>Estado</th><th>Comisión</th><th>Acceso</th></tr></thead>
       <tbody>
-        {% for b in recent_budgets %}
+        {% for a in delivery_apps %}
         <tr>
-          <td class="mono fw-600">{{ b.budget_number }}</td>
-          <td>{{ b.client_name }}</td>
-          <td class="mono">${{ "%.2f"|format(b.total) }}</td>
+          <td style="font-weight:600">{{ a.display_name }}</td>
           <td>
-            <span class="badge {% if b.status == 'aprobado' %}badge-success{% elif b.status == 'rechazado' %}badge-danger{% elif b.status == 'enviado' %}badge-info{% else %}badge-gray{% endif %}">
-              {{ b.status }}
-            </span>
+            {% if a.is_active %}<span class="badge badge-success">Activa</span>{% else %}<span class="badge badge-gray">Inactiva</span>{% endif %}
           </td>
-          <td class="text-muted" style="font-size:.8rem">{{ b.created_at.strftime('%d/%m/%Y') }}</td>
-          <td><a href="{{ url_for('budgets.view_budget', id=b.id) }}" class="btn btn-sm btn-outline">Ver</a></td>
+          <td class="mono">{% if a.commission_pct > 0 %}{{ a.commission_pct }}%{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td>
+            {% if a.store_url %}<a href="{{ a.store_url }}" target="_blank" class="btn btn-sm btn-accent"><i class="fas fa-external-link-alt"></i> Abrir</a>{% else %}<span class="text-muted" style="font-size:.8rem">Sin URL</span>{% endif %}
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">Sin presupuestos</td></tr>
+        <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">
+          <i class="fas fa-motorcycle" style="font-size:1.5rem;display:block;margin-bottom:.5rem;opacity:.3"></i>
+          Sin apps configuradas — <a href="{{ url_for('delivery.delivery_apps') }}" style="color:var(--brand-light)">agregar ahora</a>
+        </td></tr>
         {% endfor %}
       </tbody>
     </table>

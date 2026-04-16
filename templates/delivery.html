@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% block title %}Apps de Delivery — Fogo{% endblock %}
+{% block page_title %}🛵 Apps de Delivery{% endblock %}
+{% block page_subtitle %}Conectá tu local con Rappi, PedidosYa y más{% endblock %}
+{% block topbar_actions %}
+  {% if current_user.can_edit() %}
+  <button class="btn btn-primary btn-sm" onclick="document.getElementById('newAppModal').classList.add('open')">
+    <i class="fas fa-plus"></i> Agregar App
+  </button>
+  {% endif %}
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .app-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:1rem; }
+  .app-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    overflow:hidden; transition:box-shadow .15s,transform .15s;
+  }
+  .app-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
+  .app-card.inactive { opacity:.5; }
+
+  .app-header { padding:1.25rem 1.25rem .75rem; display:flex; align-items:center; gap:1rem; }
+  .app-logo { width:52px; height:52px; object-fit:contain; border-radius:10px; background:#fff; padding:4px; }
+  .app-logo-placeholder { width:52px; height:52px; border-radius:10px; background:var(--surface2); display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:1.4rem; }
+  .app-name { font-size:1.1rem; font-weight:700; color:var(--text); }
+  .app-status-badge { margin-top:.2rem; }
+
+  .app-body { padding:.25rem 1.25rem 1rem; }
+  .app-url { font-size:.8rem; color:var(--info); word-break:break-all; }
+  .app-url a { color:var(--info); text-decoration:none; }
+  .app-url a:hover { text-decoration:underline; }
+  .app-commission { margin-top:.5rem; font-size:.85rem; color:var(--text-muted); }
+  .app-notes { margin-top:.5rem; font-size:.82rem; color:var(--text-muted); border-top:1px solid var(--border); padding-top:.5rem; }
+
+  .app-actions { padding:.75rem 1.25rem; border-top:1px solid var(--border); display:flex; gap:.5rem; align-items:center; }
+
+  .known-apps-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:.75rem; margin-bottom:1.5rem; }
+  .known-app-btn {
+    background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+    padding:1rem; text-align:center; cursor:pointer; transition:all .15s;
+    display:flex; flex-direction:column; align-items:center; gap:.5rem;
+  }
+  .known-app-btn:hover { border-color:var(--brand); background:rgba(192,57,43,.1); }
+  .known-app-btn img { width:48px; height:32px; object-fit:contain; }
+  .known-app-btn .kname { font-size:.85rem; font-weight:600; color:var(--text); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not apps %}
+<!-- Empty state -->
+<div class="card" style="text-align:center;padding:3rem;margin-bottom:1.5rem">
+  <i class="fas fa-motorcycle" style="font-size:3rem;color:var(--text-light);margin-bottom:1rem;display:block"></i>
+  <h3 style="color:var(--text);margin-bottom:.5rem">Sin apps de delivery conectadas</h3>
+  <p style="color:var(--text-muted);margin-bottom:1.5rem">Agregá tus cuentas de Rappi, PedidosYa u otras apps para tenerlas organizadas.</p>
+  {% if current_user.can_edit() %}
+  <button class="btn btn-primary" onclick="document.getElementById('newAppModal').classList.add('open')">
+    <i class="fas fa-plus"></i> Agregar primera app
+  </button>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if apps %}
+<div class="app-grid" style="margin-bottom:1.5rem">
+  {% for a in apps %}
+  <div class="app-card {% if not a.is_active %}inactive{% endif %}">
+    <div class="app-header">
+      {% if a.logo_url %}
+        <img src="{{ a.logo_url }}" class="app-logo" alt="{{ a.display_name }}" onerror="this.style.display='none'">
+      {% else %}
+        <div class="app-logo-placeholder"><i class="fas fa-motorcycle"></i></div>
+      {% endif %}
+      <div>
+        <div class="app-name">{{ a.display_name }}</div>
+        <div class="app-status-badge">
+          {% if a.is_active %}
+          <span class="badge badge-success"><i class="fas fa-circle" style="font-size:.5rem"></i> Activa</span>
+          {% else %}
+          <span class="badge badge-gray">Inactiva</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="app-body">
+      {% if a.store_url %}
+      <div class="app-url"><i class="fas fa-link" style="font-size:.7rem"></i>
+        <a href="{{ a.store_url }}" target="_blank" rel="noopener">{{ a.store_url[:55] }}{% if a.store_url|length > 55 %}…{% endif %}</a>
+      </div>
+      {% else %}
+      <div style="font-size:.8rem;color:var(--text-muted)"><i class="fas fa-link" style="opacity:.4"></i> Sin URL configurada</div>
+      {% endif %}
+      {% if a.commission_pct > 0 %}
+      <div class="app-commission"><i class="fas fa-percent" style="font-size:.7rem"></i> Comisión: <strong>{{ a.commission_pct }}%</strong></div>
+      {% endif %}
+      {% if a.notes %}
+      <div class="app-notes">{{ a.notes }}</div>
+      {% endif %}
+    </div>
+    <div class="app-actions">
+      {% if a.store_url %}
+      <a href="{{ a.store_url }}" target="_blank" class="btn btn-sm btn-accent" rel="noopener">
+        <i class="fas fa-external-link-alt"></i> Abrir app
+      </a>
+      {% endif %}
+      {% if current_user.can_edit() %}
+      <button class="btn btn-sm btn-outline" onclick="openEditModal({{ a.id }}, '{{ a.display_name|e }}', '{{ a.store_url|e }}', {{ a.commission_pct }}, '{{ a.logo_url|e }}', '{{ a.notes|e }}', {{ 'true' if a.is_active else 'false' }})">
+        <i class="fas fa-pen"></i>
+      </button>
+      <form method="POST" action="{{ url_for('delivery.toggle_delivery_app', id=a.id) }}" style="margin-left:auto">
+        <button type="submit" class="btn btn-sm {% if a.is_active %}btn-warning{% else %}btn-success{% endif %}">
+          {% if a.is_active %}<i class="fas fa-pause"></i>{% else %}<i class="fas fa-play"></i>{% endif %}
+        </button>
+      </form>
+      {% endif %}
+      {% if current_user.is_admin() %}
+      <form method="POST" action="{{ url_for('delivery.delete_delivery_app', id=a.id) }}" onsubmit="return confirm('¿Eliminar?')">
+        <button type="submit" class="btn btn-sm btn-danger btn-icon"><i class="fas fa-trash"></i></button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Info card -->
+<div class="card">
+  <div class="card-header"><span class="card-title"><i class="fas fa-circle-info"></i> ¿Cómo funciona la conexión?</span></div>
+  <div class="card-body">
+    <div class="grid-3" style="gap:1.5rem">
+      <div>
+        <div style="font-size:1.5rem;margin-bottom:.5rem">1️⃣</div>
+        <div style="font-weight:600;margin-bottom:.3rem">Registrá tu local</div>
+        <div style="font-size:.85rem;color:var(--text-muted)">Entrá a la web de cada app (Rappi, PedidosYa) y creá tu cuenta como restaurante/negocio.</div>
+      </div>
+      <div>
+        <div style="font-size:1.5rem;margin-bottom:.5rem">2️⃣</div>
+        <div style="font-weight:600;margin-bottom:.3rem">Cargá tu URL aquí</div>
+        <div style="font-size:.85rem;color:var(--text-muted)">Una vez activo en la app, pegá la URL de tu perfil/tienda para acceder rápido desde este panel.</div>
+      </div>
+      <div>
+        <div style="font-size:1.5rem;margin-bottom:.5rem">3️⃣</div>
+        <div style="font-weight:600;margin-bottom:.3rem">Sincronizá tu menú</div>
+        <div style="font-size:.85rem;color:var(--text-muted)">Actualizá precios y productos directamente en cada plataforma. Los pedidos llegarán por sus propios canales.</div>
+      </div>
+    </div>
+    <div style="background:#1a0808;border:1px solid #3a1a1a;border-radius:8px;padding:1rem;margin-top:1.25rem;font-size:.85rem;color:var(--text-muted)">
+      <i class="fas fa-lightbulb" style="color:var(--accent)"></i>
+      <strong style="color:var(--text)">Tip:</strong> Las apps de delivery (Rappi, PedidosYa) operan con sus propios sistemas de pedidos. Este módulo sirve para centralizar los links de acceso, registrar comisiones y tener todo organizado desde Fogo.
+    </div>
+  </div>
+</div>
+
+
+<!-- NEW APP MODAL -->
+<div class="modal-backdrop" id="newAppModal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-motorcycle"></i> Agregar App de Delivery</span>
+      <button class="modal-close" onclick="document.getElementById('newAppModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" action="{{ url_for('delivery.new_delivery_app') }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">App *</label>
+          <select name="name" class="form-control" onchange="fillKnown(this.value)" required>
+            <option value="">Seleccioná una app</option>
+            {% for key, meta in known_apps.items() %}
+            <option value="{{ key }}">{{ meta.display_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nombre a mostrar</label>
+          <input type="text" name="display_name" id="newDisplayName" class="form-control" placeholder="Ej: Rappi Fogo Córdoba">
+        </div>
+        <div class="form-group">
+          <label class="form-label">URL de tu local en la app</label>
+          <input type="url" name="store_url" id="newStoreUrl" class="form-control" placeholder="https://www.rappi.com.ar/restaurantes/fogo">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">% Comisión <span style="color:var(--text-muted);font-weight:400">(informativo)</span></label>
+            <input type="number" name="commission_pct" class="form-control" step="0.1" min="0" max="100" placeholder="0" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Logo URL <span style="color:var(--text-muted);font-weight:400">(se completa auto)</span></label>
+            <input type="text" name="logo_url" id="newLogoUrl" class="form-control" placeholder="">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notas</label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="Horarios activos, contacto de soporte, etc."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('newAppModal').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT APP MODAL -->
+<div class="modal-backdrop" id="editAppModal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-pen"></i> Editar App</span>
+      <button class="modal-close" onclick="document.getElementById('editAppModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" id="editAppForm">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Nombre a mostrar</label>
+          <input type="text" name="display_name" id="editDisplayName" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">URL del local en la app</label>
+          <input type="url" name="store_url" id="editStoreUrl" class="form-control">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">% Comisión</label>
+            <input type="number" name="commission_pct" id="editCommission" class="form-control" step="0.1" min="0" max="100">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Logo URL</label>
+            <input type="text" name="logo_url" id="editLogoUrl" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notas</label>
+          <textarea name="notes" id="editNotes" class="form-control" rows="2"></textarea>
+        </div>
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem">
+          <input type="checkbox" name="is_active" id="editActive" style="accent-color:var(--success);width:16px;height:16px"> Activa
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('editAppModal').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const knownApps = {{ known_apps | tojson }};
+
+  function fillKnown(key) {
+    const meta = knownApps[key] || {};
+    document.getElementById('newDisplayName').value = meta.display_name || '';
+    document.getElementById('newLogoUrl').value = meta.logo || '';
+  }
+
+  function openEditModal(id, displayName, storeUrl, commission, logoUrl, notes, active) {
+    document.getElementById('editAppForm').action = `/delivery/${id}/editar`;
+    document.getElementById('editDisplayName').value = displayName;
+    document.getElementById('editStoreUrl').value = storeUrl;
+    document.getElementById('editCommission').value = commission;
+    document.getElementById('editLogoUrl').value = logoUrl;
+    document.getElementById('editNotes').value = notes;
+    document.getElementById('editActive').checked = active;
+    document.getElementById('editAppModal').classList.add('open');
+  }
+
+  document.getElementById('newAppModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+  document.getElementById('editAppModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+</script>
+{% endblock %}

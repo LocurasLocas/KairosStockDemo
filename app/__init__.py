@@ -73,6 +73,7 @@ def create_app():
     from app.routes.caja import caja_bp
     from app.routes.proveedores import proveedores_bp
     from app.routes.plazos import plazos_bp
+    from app.routes.delivery import delivery_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -83,6 +84,7 @@ def create_app():
     app.register_blueprint(caja_bp)
     app.register_blueprint(proveedores_bp)
     app.register_blueprint(plazos_bp)
+    app.register_blueprint(delivery_bp)
 
     with app.app_context():
         _init_db(app)
@@ -93,13 +95,13 @@ def create_app():
 
 def _init_db(app):
     try:
-        from app.models import BudgetConfig  # noqa: ensure table is registered
+        from app.models import BudgetConfig, DeliveryApp  # noqa: ensure tables are registered
         db.create_all()
         from app.models import User, Category
         if not User.query.filter_by(username='admin').first():
             admin = User(
                 username='admin',
-                email='admin@kairos.local',
+                email='admin@fogo.local',
                 role='admin',
                 must_change_password=True
             )
@@ -108,11 +110,14 @@ def _init_db(app):
             db.session.commit()
             app.logger.info("Base de datos inicializada. Usuario admin debe cambiar contraseña.")
 
-        # Insert default categories only if they don't exist yet
+        # Categorías para hamburguesería
         for name, desc, color in [
-            ('General',      'Productos generales',           '#6366f1'),
-            ('Electrónica',  'Equipos electrónicos',          '#06b6d4'),
-            ('Herramientas', 'Herramientas y equipamiento',   '#f59e0b'),
+            ('Hamburguesas',   'Nuestras hamburguesas',         '#c0392b'),
+            ('Combos',         'Combos y menús completos',      '#e67e22'),
+            ('Bebidas',        'Bebidas frías y calientes',     '#2980b9'),
+            ('Acompañamientos','Papas, ensaladas y más',        '#27ae60'),
+            ('Postres',        'Dulces para cerrar',            '#8e44ad'),
+            ('Ingredientes',   'Insumos y materias primas',     '#7f8c8d'),
         ]:
             if not Category.query.filter_by(name=name).first():
                 db.session.add(Category(name=name, description=desc, color=color))

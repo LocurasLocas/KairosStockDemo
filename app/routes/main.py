@@ -3,7 +3,7 @@ import json
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
 
-from app.models import db, Product, Category, StockMovement, Budget
+from app.models import db, Product, Category, StockMovement, DeliveryApp
 
 main_bp = Blueprint('main', __name__)
 
@@ -24,7 +24,8 @@ def dashboard():
     recent_movements = StockMovement.query.order_by(
         StockMovement.created_at.desc()
     ).limit(8).all()
-    recent_budgets = Budget.query.order_by(Budget.created_at.desc()).limit(5).all()
+
+    delivery_apps = DeliveryApp.query.order_by(DeliveryApp.id).all()
 
     categories = Category.query.all()
     cat_data = [
@@ -38,7 +39,7 @@ def dashboard():
         low_stock_products=low_stock_products,
         total_stock_value=total_stock_value,
         recent_movements=recent_movements,
-        recent_budgets=recent_budgets,
+        delivery_apps=delivery_apps,
         cat_data=json.dumps(cat_data)
     )
 

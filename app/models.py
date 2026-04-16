@@ -95,6 +95,16 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     is_active = db.Column(db.Boolean, default=True)
+    image_url = db.Column(db.String(500), default='')        # foto del plato
+    discount_pct = db.Column(db.Float, default=0.0)          # % descuento activo (0 = sin descuento)
+    promo_label = db.Column(db.String(80), default='')       # ej: "2x1", "Promo del día"
+    promo_active = db.Column(db.Boolean, default=False)
+
+    @property
+    def price_with_discount(self):
+        if self.promo_active and self.discount_pct > 0:
+            return round(self.price * (1 - self.discount_pct / 100), 2)
+        return self.price
 
     @property
     def low_stock(self):
@@ -378,3 +388,18 @@ class BudgetConfig(db.Model):
             db.session.add(cfg)
             db.session.commit()
         return cfg
+
+
+# ─── DELIVERY APPS ────────────────────────────────────────────────────────────
+
+class DeliveryApp(db.Model):
+    """Conexión con apps de delivery tipo Rappi, PedidosYa, etc."""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)          # rappi, pedidosya, etc.
+    display_name = db.Column(db.String(100), default='')
+    store_url = db.Column(db.String(500), default='')        # URL del local en la app
+    is_active = db.Column(db.Boolean, default=True)
+    commission_pct = db.Column(db.Float, default=0.0)        # % comisión informativo
+    logo_url = db.Column(db.String(200), default='')
+    notes = db.Column(db.String(300), default='')
+    created_at = db.Column(db.DateTime, default=utcnow)
