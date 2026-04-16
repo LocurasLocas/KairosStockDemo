@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+{% block title %}Integraciones de Delivery — Kairos Burgers{% endblock %}
+{% block page_title %}Integraciones de Delivery{% endblock %}
+{% block page_subtitle %}Conectá tu menú con Rappi, PedidosYa y más{% endblock %}
+
+{% block extra_head %}
+<style>
+  .integrations-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+  @media(max-width:800px){ .integrations-grid{ grid-template-columns:1fr; } }
+
+  /* ── Platform card ── */
+  .platform-card { border-radius:14px; overflow:hidden; border:2px solid var(--border); transition:border-color .2s; }
+  .platform-card.connected { border-color: var(--success); }
+  .platform-header {
+    padding:1.25rem 1.25rem .9rem;
+    display:flex; align-items:center; gap:.9rem;
+    border-bottom:1px solid var(--border);
+  }
+  .platform-logo {
+    width:48px; height:48px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.4rem; flex-shrink:0;
+  }
+  .rappi-logo  { background:#FF441F; }
+  .pedidosya-logo { background:#FF002D; }
+  .mercadopago-logo { background:#009ee3; }
+  .platform-name { font-size:1rem; font-weight:700; }
+  .platform-desc { font-size:.78rem; color:var(--text-muted); margin-top:.1rem; }
+
+  .status-dot {
+    margin-left:auto; display:flex; align-items:center; gap:.4rem;
+    font-size:.75rem; font-weight:600; padding:.3rem .75rem;
+    border-radius:20px;
+  }
+  .dot-connected { background:#d1fae5; color:#065f46; }
+  .dot-disconnected { background:#fee2e2; color:#991b1b; }
+  .dot-pending { background:#fef3c7; color:#92400e; }
+
+  .platform-body { padding:1.25rem; }
+
+  /* ── Stats row ── */
+  .stats-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.6rem; margin-bottom:1.1rem; }
+  .stat-box { background:var(--surface2); border-radius:9px; padding:.7rem; text-align:center; }
+  .stat-num { font-size:1.3rem; font-weight:700; color:var(--brand); }
+  .stat-lbl { font-size:.68rem; color:var(--text-muted); margin-top:.1rem; text-transform:uppercase; letter-spacing:.04em; }
+
+  /* ── Sync actions ── */
+  .sync-row { display:flex; gap:.5rem; margin-bottom:1rem; }
+  .last-sync { font-size:.75rem; color:var(--text-muted); display:flex; align-items:center; gap:.35rem; margin-bottom:.85rem; }
+
+  /* ── Config fields ── */
+  .config-section { border-top:1px solid var(--border); padding-top:1rem; margin-top:1rem; }
+  .config-title { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-bottom:.75rem; }
+
+  /* ── Global overview ── */
+  .overview-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+  @media(max-width:700px){ .overview-grid{ grid-template-columns:1fr 1fr; } }
+  .overview-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1rem; text-align:center; }
+  .overview-num { font-size:1.75rem; font-weight:700; }
+  .overview-lbl { font-size:.75rem; color:var(--text-muted); margin-top:.2rem; }
+
+  /* ── Order feed ── */
+  .order-feed { }
+  .order-item {
+    display:flex; align-items:center; gap:.85rem;
+    padding:.75rem 0; border-bottom:1px solid var(--border);
+  }
+  .order-item:last-child { border-bottom:none; }
+  .order-platform-badge {
+    width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:.75rem; font-weight:700; color:#fff; flex-shrink:0;
+  }
+  .order-info { flex:1; min-width:0; }
+  .order-id { font-size:.82rem; font-weight:600; }
+  .order-detail { font-size:.75rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .order-amount { font-weight:700; font-size:.9rem; color:var(--brand); white-space:nowrap; }
+  .order-status { font-size:.7rem; font-weight:600; padding:.2rem .6rem; border-radius:20px; white-space:nowrap; }
+  .os-new { background:#dbeafe; color:#1d4ed8; }
+  .os-preparing { background:#fef3c7; color:#92400e; }
+  .os-delivered { background:#d1fae5; color:#065f46; }
+  .os-cancelled { background:#fee2e2; color:#991b1b; }
+
+  /* ── Webhook ── */
+  .webhook-box { background:#1e293b; color:#e2e8f0; border-radius:10px; padding:.85rem 1rem; font-family:'JetBrains Mono',monospace; font-size:.78rem; line-height:1.6; overflow-x:auto; word-break:break-all; }
+  .webhook-box .url { color:#86efac; }
+  .webhook-box .key { color:#93c5fd; }
+  .copy-btn { background:none; border:1px solid var(--border); border-radius:6px; padding:.3rem .7rem; font-size:.75rem; cursor:pointer; color:var(--text-muted); transition:all .15s; }
+  .copy-btn:hover { border-color:var(--brand); color:var(--brand); }
+
+  /* ── Toggle switch reutilizado ── */
+  .toggle-switch { position:relative; width:44px; height:26px; flex-shrink:0; display:inline-block; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; cursor:pointer; inset:0; background:#cbd5e1; border-radius:24px; transition:.3s; }
+  .toggle-slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.3s; }
+  .toggle-switch input:checked + .toggle-slider { background:var(--success); }
+  .toggle-switch input:checked + .toggle-slider:before { transform:translateX(18px); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Overview bar ── -->
+<div class="overview-grid">
+  <div class="overview-card">
+    <div class="overview-num" style="color:#FF441F">{{ rappi_orders_today or 0 }}</div>
+    <div class="overview-lbl">Pedidos Rappi hoy</div>
+  </div>
+  <div class="overview-card">
+    <div class="overview-num" style="color:#FF002D">{{ pedidosya_orders_today or 0 }}</div>
+    <div class="overview-lbl">Pedidos PedidosYa hoy</div>
+  </div>
+  <div class="overview-card">
+    <div class="overview-num" style="color:var(--brand)">${{ "%.0f"|format(delivery_revenue_today or 0) }}</div>
+    <div class="overview-lbl">Ingresos delivery hoy</div>
+  </div>
+  <div class="overview-card">
+    <div class="overview-num" style="color:var(--success)">{{ menu_items_synced or 0 }}</div>
+    <div class="overview-lbl">Ítems sincronizados</div>
+  </div>
+</div>
+
+<div class="integrations-grid">
+
+  <!-- ═══════════ RAPPI ═══════════ -->
+  <div class="platform-card {% if rappi_connected %}connected{% endif %}">
+    <div class="platform-header">
+      <div class="platform-logo rappi-logo">🛵</div>
+      <div>
+        <div class="platform-name">Rappi</div>
+        <div class="platform-desc">Delivery on demand · Colombia, ARG, MX y más</div>
+      </div>
+      <span class="status-dot {% if rappi_connected %}dot-connected{% else %}dot-disconnected{% endif %}">
+        <i class="fas fa-circle" style="font-size:.45rem"></i>
+        {% if rappi_connected %}Conectado{% else %}Desconectado{% endif %}
+      </span>
+    </div>
+
+    <div class="platform-body">
+      {% if rappi_connected %}
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-num">{{ rappi_stats.orders_today or 0 }}</div>
+          <div class="stat-lbl">Pedidos hoy</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">${{ "%.0f"|format(rappi_stats.revenue_today or 0) }}</div>
+          <div class="stat-lbl">Ingresos</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">{{ rappi_stats.rating or '—' }}</div>
+          <div class="stat-lbl">Rating</div>
+        </div>
+      </div>
+
+      <div class="last-sync">
+        <i class="fas fa-rotate"></i>
+        Última sincronización: <strong>{{ rappi_last_sync or 'nunca' }}</strong>
+      </div>
+
+      <div class="sync-row">
+        <form method="POST" action="{{ url_for('sync_platform', platform='rappi') }}" style="flex:1">
+          <button type="submit" class="btn btn-outline" style="width:100%;justify-content:center">
+            <i class="fas fa-rotate"></i> Sincronizar menú
+          </button>
+        </form>
+        <form method="POST" action="{{ url_for('sync_platform_prices', platform='rappi') }}" style="flex:1">
+          <button type="submit" class="btn btn-outline" style="width:100%;justify-content:center">
+            <i class="fas fa-tag"></i> Sincronizar precios
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
+      <!-- Config section -->
+      <div class="config-section">
+        <div class="config-title"><i class="fas fa-key"></i> Credenciales API</div>
+        <form method="POST" action="{{ url_for('save_platform_config', platform='rappi') }}">
+          <div class="form-group">
+            <label class="form-label">Store ID (Rappi)</label>
+            <input type="text" name="store_id" class="form-control"
+              value="{{ rappi_config.store_id if rappi_config else '' }}" placeholder="Ej: 900123456">
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Key / Client Secret</label>
+            <input type="password" name="api_key" class="form-control"
+              value="{{ rappi_config.api_key if rappi_config else '' }}" placeholder="••••••••••••">
+          </div>
+          <div class="form-group">
+            <label class="form-label">País</label>
+            <select name="country" class="form-control">
+              {% for code, name in [('ar','Argentina'),('co','Colombia'),('mx','México'),('cl','Chile'),('pe','Perú'),('br','Brasil')] %}
+              <option value="{{ code }}" {% if rappi_config and rappi_config.country == code %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="config-title" style="margin-top:1rem"><i class="fas fa-sliders"></i> Opciones</div>
+          <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.85rem">
+            {% for field, label in [
+              ('auto_accept','Aceptar pedidos automáticamente'),
+              ('sync_prices','Sincronizar precios automáticamente'),
+              ('sync_stock','Pausar producto sin stock'),
+              ('sync_promos','Publicar promociones activas')
+            ] %}
+            <label style="display:flex;align-items:center;justify-content:space-between;font-size:.85rem">
+              {{ label }}
+              <label class="toggle-switch">
+                <input type="checkbox" name="{{ field }}"
+                  {% if rappi_config and rappi_config[field] %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+              </label>
+            </label>
+            {% endfor %}
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+            <i class="fas fa-save"></i> {% if rappi_connected %}Actualizar{% else %}Conectar Rappi{% endif %}
+          </button>
+        </form>
+
+        {% if rappi_connected %}
+        <div style="margin-top:.6rem">
+          <div class="config-title"><i class="fas fa-webhook"></i> Webhook URL (para Rappi)</div>
+          <div class="webhook-box">
+            <span class="key">POST</span> <span class="url">{{ request.url_root }}webhooks/rappi/orders</span>
+          </div>
+          <div style="display:flex;gap:.4rem;margin-top:.5rem">
+            <button class="copy-btn" onclick="copyText('{{ request.url_root }}webhooks/rappi/orders')">
+              <i class="fas fa-copy"></i> Copiar URL
+            </button>
+            <form method="POST" action="{{ url_for('test_webhook', platform='rappi') }}" style="display:inline">
+              <button type="submit" class="copy-btn"><i class="fas fa-flask"></i> Test webhook</button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PEDIDOSYA ═══════════ -->
+  <div class="platform-card {% if pedidosya_connected %}connected{% endif %}">
+    <div class="platform-header">
+      <div class="platform-logo pedidosya-logo">🚲</div>
+      <div>
+        <div class="platform-name">PedidosYa</div>
+        <div class="platform-desc">Delivery líder en Latinoamérica</div>
+      </div>
+      <span class="status-dot {% if pedidosya_connected %}dot-connected{% else %}dot-disconnected{% endif %}">
+        <i class="fas fa-circle" style="font-size:.45rem"></i>
+        {% if pedidosya_connected %}Conectado{% else %}Desconectado{% endif %}
+      </span>
+    </div>
+
+    <div class="platform-body">
+      {% if pedidosya_connected %}
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-num">{{ pedidosya_stats.orders_today or 0 }}</div>
+          <div class="stat-lbl">Pedidos hoy</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">${{ "%.0f"|format(pedidosya_stats.revenue_today or 0) }}</div>
+          <div class="stat-lbl">Ingresos</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">{{ pedidosya_stats.rating or '—' }}</div>
+          <div class="stat-lbl">Rating</div>
+        </div>
+      </div>
+
+      <div class="last-sync">
+        <i class="fas fa-rotate"></i>
+        Última sincronización: <strong>{{ pedidosya_last_sync or 'nunca' }}</strong>
+      </div>
+
+      <div class="sync-row">
+        <form method="POST" action="{{ url_for('sync_platform', platform='pedidosya') }}" style="flex:1">
+          <button type="submit" class="btn btn-outline" style="width:100%;justify-content:center">
+            <i class="fas fa-rotate"></i> Sincronizar menú
+          </button>
+        </form>
+        <form method="POST" action="{{ url_for('sync_platform_prices', platform='pedidosya') }}" style="flex:1">
+          <button type="submit" class="btn btn-outline" style="width:100%;justify-content:center">
+            <i class="fas fa-tag"></i> Sincronizar precios
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
+      <div class="config-section">
+        <div class="config-title"><i class="fas fa-key"></i> Credenciales API</div>
+        <form method="POST" action="{{ url_for('save_platform_config', platform='pedidosya') }}">
+          <div class="form-group">
+            <label class="form-label">Restaurant ID</label>
+            <input type="text" name="store_id" class="form-control"
+              value="{{ pedidosya_config.store_id if pedidosya_config else '' }}" placeholder="Ej: 123456">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Client ID</label>
+            <input type="text" name="client_id" class="form-control"
+              value="{{ pedidosya_config.client_id if pedidosya_config else '' }}" placeholder="Ej: pya_client_...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Client Secret</label>
+            <input type="password" name="api_key" class="form-control"
+              value="{{ pedidosya_config.api_key if pedidosya_config else '' }}" placeholder="••••••••••••">
+          </div>
+          <div class="form-group">
+            <label class="form-label">País</label>
+            <select name="country" class="form-control">
+              {% for code, name in [('ar','Argentina'),('uy','Uruguay'),('cl','Chile'),('bo','Bolivia'),('py','Paraguay'),('ve','Venezuela')] %}
+              <option value="{{ code }}" {% if pedidosya_config and pedidosya_config.country == code %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="config-title" style="margin-top:1rem"><i class="fas fa-sliders"></i> Opciones</div>
+          <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.85rem">
+            {% for field, label in [
+              ('auto_accept','Aceptar pedidos automáticamente'),
+              ('sync_prices','Sincronizar precios automáticamente'),
+              ('sync_stock','Pausar producto sin stock'),
+              ('sync_promos','Publicar promociones activas')
+            ] %}
+            <label style="display:flex;align-items:center;justify-content:space-between;font-size:.85rem">
+              {{ label }}
+              <label class="toggle-switch">
+                <input type="checkbox" name="{{ field }}"
+                  {% if pedidosya_config and pedidosya_config[field] %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+              </label>
+            </label>
+            {% endfor %}
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+            <i class="fas fa-save"></i> {% if pedidosya_connected %}Actualizar{% else %}Conectar PedidosYa{% endif %}
+          </button>
+        </form>
+
+        {% if pedidosya_connected %}
+        <div style="margin-top:.6rem">
+          <div class="config-title"><i class="fas fa-webhook"></i> Webhook URL (para PedidosYa)</div>
+          <div class="webhook-box">
+            <span class="key">POST</span> <span class="url">{{ request.url_root }}webhooks/pedidosya/orders</span>
+          </div>
+          <div style="display:flex;gap:.4rem;margin-top:.5rem">
+            <button class="copy-btn" onclick="copyText('{{ request.url_root }}webhooks/pedidosya/orders')">
+              <i class="fas fa-copy"></i> Copiar URL
+            </button>
+            <form method="POST" action="{{ url_for('test_webhook', platform='pedidosya') }}" style="display:inline">
+              <button type="submit" class="copy-btn"><i class="fas fa-flask"></i> Test webhook</button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div><!-- /integrations-grid -->
+
+<!-- ── Pedidos recientes de delivery ── -->
+<div class="card" style="margin-top:1.25rem">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-receipt"></i> Últimos pedidos de delivery</span>
+    <a href="{{ url_for('delivery_orders') }}" class="btn btn-sm btn-outline">Ver todos</a>
+  </div>
+  <div class="card-body">
+    {% if recent_orders %}
+    <div class="order-feed">
+      {% for order in recent_orders %}
+      <div class="order-item">
+        <div class="order-platform-badge" style="background:{% if order.platform == 'rappi' %}#FF441F{% else %}#FF002D{% endif %}">
+          {% if order.platform == 'rappi' %}🛵{% else %}🚲{% endif %}
+        </div>
+        <div class="order-info">
+          <div class="order-id">#{{ order.external_id }} · {{ order.customer_name }}</div>
+          <div class="order-detail">{{ order.items_summary }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem">
+          <span class="order-amount">${{ "%.2f"|format(order.total) }}</span>
+          <span class="order-status os-{{ order.status }}">{{ order.status.capitalize() }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:2rem;color:var(--text-muted)">
+      <i class="fas fa-motorcycle" style="font-size:2.5rem;opacity:.3;display:block;margin-bottom:.75rem"></i>
+      Aún no hay pedidos de delivery.<br>
+      <span style="font-size:.82rem">Conectá Rappi o PedidosYa para empezar a recibir pedidos.</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Guía rápida ── -->
+<div class="card" style="margin-top:1.25rem">
+  <div class="card-header"><span class="card-title"><i class="fas fa-circle-info"></i> Cómo conectar una plataforma</span></div>
+  <div class="card-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+      <div>
+        <div style="font-size:.8rem;font-weight:700;color:#FF441F;margin-bottom:.6rem">🛵 Rappi</div>
+        <ol style="font-size:.8rem;color:var(--text-muted);line-height:1.9;padding-left:1.25rem">
+          <li>Ingresá al <strong>Portal de Aliados Rappi</strong></li>
+          <li>Ve a <strong>Integraciones → API</strong></li>
+          <li>Generá tus credenciales</li>
+          <li>Copiá el <strong>Store ID</strong> y el <strong>Client Secret</strong></li>
+          <li>Pegá los datos arriba y hacé clic en Conectar</li>
+          <li>Configurá la URL del webhook en Rappi</li>
+        </ol>
+      </div>
+      <div>
+        <div style="font-size:.8rem;font-weight:700;color:#FF002D;margin-bottom:.6rem">🚲 PedidosYa</div>
+        <ol style="font-size:.8rem;color:var(--text-muted);line-height:1.9;padding-left:1.25rem">
+          <li>Accedé al <strong>Panel de Socios PedidosYa</strong></li>
+          <li>Ve a <strong>Configuración → API / Integraciones</strong></li>
+          <li>Creá una nueva integración</li>
+          <li>Copiá el <strong>Client ID</strong>, <strong>Secret</strong> y <strong>Restaurant ID</strong></li>
+          <li>Pegá los datos arriba y hacé clic en Conectar</li>
+          <li>Configurá la URL del webhook en PedidosYa</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = event.currentTarget;
+      btn.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+      btn.style.color = 'var(--success)';
+      setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> Copiar URL'; btn.style.color = ''; }, 2000);
+    });
+  }
+</script>
+{% endblock %}

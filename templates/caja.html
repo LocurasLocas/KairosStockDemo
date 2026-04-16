@@ -53,9 +53,9 @@
   .ticket-header .title { font-weight:700; font-size:.95rem; }
   .ticket-items { min-height:180px; max-height:340px; overflow-y:auto; }
   .ticket-item {
-    display:grid; grid-template-columns:1fr auto auto auto;
-    align-items:center; gap:.5rem;
-    padding:.6rem 1.25rem; border-bottom:1px solid var(--border); font-size:.85rem;
+    display:grid; grid-template-columns:1fr auto auto auto auto auto;
+    align-items:center; gap:.4rem;
+    padding:.55rem 1.25rem; border-bottom:1px solid var(--border); font-size:.85rem;
   }
   .ticket-item:last-child { border-bottom:none; }
   .ticket-empty { padding:2.5rem; text-align:center; color:var(--text-muted); font-size:.85rem; }
@@ -263,15 +263,24 @@
 
 <!-- ── MODAL REMITO IMPRIMIBLE ── -->
 <div class="modal-backdrop" id="modalTicket">
-  <div class="modal" style="max-width:380px">
+  <div class="modal" style="max-width:420px">
     <div class="modal-header">
-      <span class="modal-title"><i class="fas fa-file-lines" style="color:var(--brand)"></i> Remito</span>
+      <span class="modal-title"><i class="fas fa-file-lines" style="color:var(--brand)"></i> Venta registrada</span>
       <button class="modal-close" onclick="closeModal('modalTicket')"><i class="fas fa-times"></i></button>
     </div>
-    <div class="modal-body" id="ticketPrint" style="font-family:monospace;font-size:.85rem;line-height:1.6"></div>
-    <div class="modal-footer">
+    <div class="modal-body">
+      <div style="text-align:center;padding:1.2rem 0 .5rem">
+        <div style="font-size:2.5rem;margin-bottom:.5rem">✅</div>
+        <div style="font-size:1.1rem;font-weight:700;color:var(--text)" id="ticketSuccessTitle">Venta registrada</div>
+        <div style="font-size:.88rem;color:var(--text-muted);margin-top:.25rem" id="ticketSuccessDetail"></div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:1rem;margin-top:.75rem;font-size:.85rem" id="ticketResumen"></div>
+    </div>
+    <div class="modal-footer" style="gap:.5rem">
       <button class="btn btn-outline" onclick="closeModal('modalTicket')">Cerrar</button>
-      <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+      <a id="btnRemitoPdf" href="#" target="_blank" class="btn btn-primary">
+        <i class="fas fa-file-pdf"></i> Descargar Remito PDF
+      </a>
     </div>
   </div>
 </div>
@@ -473,9 +482,20 @@ function renderTicket() {
   }
   container.innerHTML = cart.map((item, idx) => `
     <div class="ticket-item">
-      <div>
-        <div style="font-weight:600;font-size:.83rem;line-height:1.3">${item.name}</div>
-        <div style="font-size:.75rem;color:var(--text-muted)">$${item.price.toFixed(2)} c/u</div>
+      <div style="min-width:0;flex:1">
+        <div style="font-weight:600;font-size:.83rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div>
+        <div style="display:flex;align-items:center;gap:.3rem;margin-top:.2rem">
+          <span style="font-size:.72rem;color:var(--text-muted)">$</span>
+          <input
+            type="number"
+            value="${item.price.toFixed(2)}"
+            min="0" step="0.01"
+            onchange="updatePrice(${idx}, this.value)"
+            onclick="this.select()"
+            style="width:70px;font-size:.78rem;border:1px solid var(--brand);border-radius:5px;padding:.15rem .35rem;background:var(--brand-bg);color:var(--brand);font-weight:600;font-family:inherit;text-align:right"
+            title="Editar precio unitario">
+          <span style="font-size:.72rem;color:var(--text-muted)">c/u</span>
+        </div>
       </div>
       <button class="qty-btn" onclick="changeQty(${idx}, -1)">−</button>
       <span style="min-width:28px;text-align:center;font-weight:600">${item.qty}</span>
@@ -485,6 +505,13 @@ function renderTicket() {
     </div>
   `).join('');
   renderTotals();
+}
+
+function updatePrice(idx, val) {
+  const newPrice = parseFloat(val);
+  if (isNaN(newPrice) || newPrice < 0) return;
+  cart[idx].price = newPrice;
+  renderTicket();
 }
 
 function changeQty(idx, delta) {
@@ -543,7 +570,7 @@ async function cobrar() {
     const data = await res.json();
     if (!res.ok) { showFlash(data.error || 'Error al procesar la venta.', 'error'); return; }
 
-    // Show printable ticket
+    // Show remito modal with PDF link
     showTicketModal(data);
 
     // Reset
@@ -551,14 +578,10 @@ async function cobrar() {
     renderTicket();
     document.getElementById('ticketNotas').value = '';
 
-    // Refresh stock badges on cards
-    data.items.forEach(item => {
-      // We'll just do a soft page reload of the product cards via a simple indicator
-    });
     showFlash('Remito registrado: ' + data.ticket_number, 'success');
 
     // Reload page stats after a short delay
-    setTimeout(() => location.reload(), 2500);
+    setTimeout(() => location.reload(), 4000);
 
   } catch(e) {
     showFlash('Error de conexión.', 'error');
@@ -569,38 +592,35 @@ async function cobrar() {
 }
 
 function showTicketModal(data) {
-  const cfg = window.REMITO_CFG || {};
-  const empresa = cfg.empresa_nombre || 'KAIROS STOCK';
-  const cuit    = cfg.empresa_cuit    ? `CUIT: ${cfg.empresa_cuit}\n` : '';
-  const dir     = cfg.empresa_direccion ? `${cfg.empresa_direccion}\n` : '';
-  const tel     = cfg.empresa_telefono  ? `Tel: ${cfg.empresa_telefono}\n` : '';
-  const email   = cfg.empresa_email     ? `${cfg.empresa_email}\n` : '';
-  const tipo    = cfg.tipo_comprobante  || 'Remito';
-  const pie     = cfg.pie_texto         || '¡Gracias por su compra!';
-  const mostrarIva = cfg.mostrar_iva !== false;
+  // Título y detalle
+  document.getElementById('ticketSuccessTitle').textContent = 'Remito N° ' + data.ticket_number;
+  document.getElementById('ticketSuccessDetail').textContent =
+    'Total: $' + data.total.toFixed(2) + ' · ' + (data.payment_method || 'Efectivo');
 
-  const sep = '================================';
-  const sep2 = '--------------------------------';
-  const lines = data.items.map(i =>
-    `${i.description.padEnd(18).substring(0,18)}  x${i.quantity}  $${i.subtotal.toFixed(2)}`
-  ).join('\n');
-  const now = new Date().toLocaleString('es-AR');
-  document.getElementById('ticketPrint').innerHTML = `
-    <pre style="margin:0;font-size:.8rem;line-height:1.7">
-${sep}
-${empresa.toUpperCase().substring(0,32).padStart(16+empresa.length/2)}
-${cuit}${dir}${tel}${email}${sep}
-${tipo}: ${data.ticket_number}
-Fecha:  ${now}
-${sep}
-${lines}
-${sep2}
-Subtotal:     $${data.subtotal.toFixed(2)}
-${(data.tax_amount > 0 && mostrarIva) ? 'IVA 21%:      $' + data.tax_amount.toFixed(2) + '\n' : ''}TOTAL:        $${data.total.toFixed(2)}
-${sep}
-${pie}
-${sep}
-    </pre>`;
+  // Resumen de ítems
+  const cfg = window.REMITO_CFG || {};
+  const mostrarIva = cfg.mostrar_iva !== false;
+  let html = '<div style="display:flex;flex-direction:column;gap:.3rem">';
+  data.items.forEach(i => {
+    html += `<div style="display:flex;justify-content:space-between;font-size:.82rem">
+      <span>${i.description} <span style="color:var(--text-muted)">x${i.quantity}</span></span>
+      <span style="font-weight:600">$${i.subtotal.toFixed(2)}</span>
+    </div>`;
+  });
+  html += `<div style="border-top:1px solid var(--border);margin-top:.4rem;padding-top:.4rem;display:flex;justify-content:space-between;font-size:.82rem">
+    <span style="color:var(--text-muted)">Subtotal</span><span>$${data.subtotal.toFixed(2)}</span></div>`;
+  if (data.tax_amount > 0 && mostrarIva) {
+    html += `<div style="display:flex;justify-content:space-between;font-size:.82rem">
+      <span style="color:var(--text-muted)">IVA (${data.tax_rate}%)</span><span>$${data.tax_amount.toFixed(2)}</span></div>`;
+  }
+  html += `<div style="display:flex;justify-content:space-between;font-weight:700;font-size:.95rem;color:var(--brand)">
+    <span>TOTAL</span><span>$${data.total.toFixed(2)}</span></div>`;
+  html += '</div>';
+  document.getElementById('ticketResumen').innerHTML = html;
+
+  // Link al PDF
+  document.getElementById('btnRemitoPdf').href = '/caja/remito-pdf/' + data.venta_id;
+
   openModal('modalTicket');
 }
 

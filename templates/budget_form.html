@@ -106,7 +106,16 @@
           </div>
           <div class="form-group">
             <label class="form-label">IVA (%)</label>
-            <input type="number" id="taxPct" class="form-control" value="21" min="0" oninput="recalc()">
+            <div style="display:flex;align-items:center;gap:.5rem;margin-top:.1rem">
+              <label style="cursor:pointer;display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--text-muted);white-space:nowrap">
+                <input type="checkbox" id="taxEnabled" checked onchange="toggleTax()" style="display:none">
+                <span id="taxToggleTrack" style="display:inline-block;width:34px;height:18px;border-radius:999px;background:var(--brand);transition:.2s;position:relative;flex-shrink:0">
+                  <span id="taxToggleThumb" style="display:block;width:14px;height:14px;border-radius:50%;background:white;position:absolute;top:2px;left:18px;transition:.2s"></span>
+                </span>
+                <span id="taxToggleLabel">Incluir</span>
+              </label>
+              <input type="number" id="taxPct" class="form-control" value="21" min="0" oninput="recalc()" style="flex:1">
+            </div>
           </div>
         </div>
         <div class="totals-box">
@@ -241,6 +250,28 @@ function addItem(desc='', qty=1, price=0, productId=null) {
 
 function removeItem(id) { document.getElementById(`item-${id}`).remove(); recalc(); }
 
+function toggleTax() {
+  const enabled = document.getElementById('taxEnabled').checked;
+  const track = document.getElementById('taxToggleTrack');
+  const thumb = document.getElementById('taxToggleThumb');
+  const label = document.getElementById('taxToggleLabel');
+  const taxInput = document.getElementById('taxPct');
+  if (enabled) {
+    track.style.background = 'var(--brand)';
+    thumb.style.left = '18px';
+    label.textContent = 'Incluir';
+    taxInput.disabled = false;
+    taxInput.style.opacity = '1';
+  } else {
+    track.style.background = 'var(--border)';
+    thumb.style.left = '2px';
+    label.textContent = 'Sin IVA';
+    taxInput.disabled = true;
+    taxInput.style.opacity = '.4';
+  }
+  recalc();
+}
+
 function recalc() {
   let subtotal = 0;
   document.querySelectorAll('#itemsBody tr').forEach(tr => {
@@ -250,7 +281,9 @@ function recalc() {
     subtotal += sub;
   });
   const disc    = parseFloat(document.getElementById('discountPct').value) || 0;
-  const tax     = parseFloat(document.getElementById('taxPct').value) || 0;
+  const taxEnabled = document.getElementById('taxEnabled').checked;
+  const taxPct  = parseFloat(document.getElementById('taxPct').value) || 0;
+  const tax     = taxEnabled ? taxPct : 0;
   const discAmt = subtotal * disc / 100;
   const taxAmt  = (subtotal - discAmt) * tax / 100;
   const total   = subtotal - discAmt + taxAmt;
@@ -261,7 +294,7 @@ function recalc() {
   document.getElementById('tTax').textContent = '$' + taxAmt.toFixed(2);
   document.getElementById('tTotal').textContent = '$' + total.toFixed(2);
   document.getElementById('tDiscountRow').style.display = disc > 0 ? 'flex' : 'none';
-  document.getElementById('tTaxRow').style.display = tax > 0 ? 'flex' : 'none';
+  document.getElementById('tTaxRow').style.display = taxEnabled ? 'flex' : 'none';
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────
@@ -292,7 +325,7 @@ async function saveBudget() {
         client_address: document.getElementById('clientAddress').value,
         notes: document.getElementById('budgetNotes').value,
         discount: parseFloat(document.getElementById('discountPct').value)||0,
-        tax: parseFloat(document.getElementById('taxPct').value)||21,
+        tax: document.getElementById('taxEnabled').checked ? (parseFloat(document.getElementById('taxPct').value)||0) : 0,
         items,
       }),
     });

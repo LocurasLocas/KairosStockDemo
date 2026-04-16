@@ -1,6 +1,6 @@
 """Caja — Punto de venta / Atención al público."""
 from datetime import datetime, date
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
 
 from app.models import db, Product, Category, Venta, VentaItem, CajaMovimiento, StockMovement, RemitoConfig, utcnow
@@ -133,10 +133,13 @@ def procesar_venta():
     db.session.commit()
 
     return jsonify({
+        'venta_id': venta.id,
         'ticket_number': venta.ticket_number,
         'subtotal': venta.subtotal,
+        'tax_rate': venta.tax_rate,
         'tax_amount': venta.tax_amount,
         'total': venta.total,
+        'payment_method': venta.payment_method,
         'items': [{'description': i.description, 'quantity': i.quantity,
                    'unit_price': i.unit_price, 'subtotal': i.subtotal}
                   for i in venta.items],
@@ -169,6 +172,24 @@ def movimiento_caja():
     db.session.add(mov)
     db.session.commit()
     return jsonify({'ok': True, 'tipo': tipo, 'monto': monto})
+
+
+# ─── DESCARGAR REMITO PDF ─────────────────────────────────────────────────────
+
+@caja_bp.route('/caja/remito-pdf/<int:id>')
+@login_required
+def remito_pdf(id):
+    import io
+    from app.utils.pdf import build_remito_pdf
+    venta = Venta.query.get_or_404(id)
+    cfg = get_remito_config()
+    pdf_bytes = build_remito_pdf(venta, cfg)
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name=f'remito-{venta.ticket_number}.pdf',
+    )
 
 
 # ─── HISTORIAL ────────────────────────────────────────────────────────────────

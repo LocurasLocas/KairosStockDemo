@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Configuración de Email — Kairos Stock{% endblock %}
+{% block title %}Configuración de Email — Kairos Burgers{% endblock %}
 {% block page_title %}Configuración de Email{% endblock %}
 {% block page_subtitle %}Notificaciones automáticas por correo electrónico{% endblock %}
 {% block extra_head %}
@@ -45,7 +45,7 @@
         <div style="background:#d1fae5;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:.875rem;color:#065f46">
           <i class="fas fa-check-circle"></i> Email configurado correctamente. Servidor: <strong>{{ mail_server }}:{{ mail_port }}</strong>
         </div>
-        <form method="POST" action="{{ url_for('users.test_email') }}">
+        <form method="POST" action="{{ url_for('test_email') }}">
           <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane"></i> Enviar email de prueba a {{ current_user.email }}</button>
         </form>
         {% else %}
@@ -60,17 +60,17 @@
       <div class="card-header"><span class="card-title"><i class="fas fa-code"></i> Cómo configurar el email</span></div>
       <div class="card-body">
         <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem">
-          Agregá estas variables de entorno en el panel de Render.com (o en tu archivo <code>.env</code> local):
+          Agregá estas variables de entorno en el panel de Railway (o en tu archivo <code>.env</code> local):
         </p>
 
         <div class="code-block">
-<span class="comment"># ─── Variables de entorno para Render.com ───</span>
+<span class="comment"># ─── Variables de entorno para Railway ───</span>
 
-<span class="key">MAIL_SERVER</span>     = <span class="val">smtp.gmail.com</span>
-<span class="key">MAIL_PORT</span>       = <span class="val">587</span>
-<span class="key">MAIL_USE_TLS</span>    = <span class="val">true</span>
-<span class="key">MAIL_USERNAME</span>   = <span class="val">tucorreo@gmail.com</span>
-<span class="key">MAIL_PASSWORD</span>   = <span class="val">xxxx xxxx xxxx xxxx</span>
+<span class="key">MAIL_SERVER</span>         = <span class="val">smtp.gmail.com</span>
+<span class="key">MAIL_PORT</span>           = <span class="val">587</span>
+<span class="key">MAIL_USE_TLS</span>        = <span class="val">true</span>
+<span class="key">MAIL_USERNAME</span>       = <span class="val">tucorreo@gmail.com</span>
+<span class="key">MAIL_PASSWORD</span>       = <span class="val">xxxx xxxx xxxx xxxx</span>
 <span class="key">MAIL_DEFAULT_SENDER</span> = <span class="val">tucorreo@gmail.com</span>
         </div>
 
@@ -80,14 +80,14 @@
             <li>Entrá a tu cuenta de Google → <strong>Seguridad</strong></li>
             <li>Activá <strong>Verificación en dos pasos</strong></li>
             <li>Buscá <strong>"Contraseñas de aplicación"</strong></li>
-            <li>Creá una nueva: nombre <em>Kairos Stock</em></li>
+            <li>Creá una nueva: nombre <em>Kairos Burgers</em></li>
             <li>Copiá la contraseña de 16 caracteres generada</li>
-            <li>Pegala en <code>MAIL_PASSWORD</code> en Render.com</li>
+            <li>Pegala en <code>MAIL_PASSWORD</code> en Railway</li>
           </ol>
         </div>
 
         <div style="margin-top:1rem;padding:.75rem;background:var(--brand-bg);border-radius:8px;font-size:.8rem;color:var(--brand)">
-          <i class="fas fa-info-circle"></i> También podés usar <strong>Outlook</strong> (<code>smtp.office365.com</code>), <strong>Yahoo</strong> (<code>smtp.mail.yahoo.com</code>) u otros proveedores SMTP.
+          <i class="fas fa-info-circle"></i> También podés usar <strong>Outlook</strong> (<code>smtp.office365.com</code>) u otros proveedores SMTP.
         </div>
       </div>
     </div>
@@ -98,11 +98,11 @@
     <div class="card mb-2">
       <div class="card-header"><span class="card-title"><i class="fas fa-bell"></i> Mis preferencias de notificación</span></div>
       <div class="card-body">
-        <form method="POST" action="{{ url_for('users.update_notifications') }}">
+        <form method="POST" action="{{ url_for('update_notifications') }}">
           <div class="toggle-group">
             <div class="toggle-info">
               <div class="toggle-label"><i class="fas fa-triangle-exclamation" style="color:var(--warning)"></i> Alertas de stock bajo</div>
-              <div class="toggle-desc">Recibí un email cuando un producto baje del mínimo</div>
+              <div class="toggle-desc">Recibí un email cuando un insumo baje del mínimo</div>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" name="notify_low_stock" {% if current_user.notify_low_stock %}checked{% endif %}>
@@ -111,11 +111,21 @@
           </div>
           <div class="toggle-group">
             <div class="toggle-info">
-              <div class="toggle-label"><i class="fas fa-file-invoice-dollar" style="color:var(--brand)"></i> Nuevos presupuestos</div>
-              <div class="toggle-desc">Notificación cuando se crea un presupuesto nuevo</div>
+              <div class="toggle-label"><i class="fas fa-motorcycle" style="color:#FF441F"></i> Nuevo pedido Rappi</div>
+              <div class="toggle-desc">Notificación por email al recibir un pedido de Rappi</div>
             </div>
             <label class="toggle-switch">
-              <input type="checkbox" name="notify_new_budget" {% if current_user.notify_new_budget %}checked{% endif %}>
+              <input type="checkbox" name="notify_rappi_order" {% if current_user.notify_rappi_order %}checked{% endif %}>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-group">
+            <div class="toggle-info">
+              <div class="toggle-label"><i class="fas fa-bicycle" style="color:#FF002D"></i> Nuevo pedido PedidosYa</div>
+              <div class="toggle-desc">Notificación por email al recibir un pedido de PedidosYa</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" name="notify_pedidosya_order" {% if current_user.notify_pedidosya_order %}checked{% endif %}>
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -125,12 +135,12 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><span class="card-title"><i class="fas fa-envelope-open-text"></i> Emails que envía Kairos Stock</span></div>
+      <div class="card-header"><span class="card-title"><i class="fas fa-envelope-open-text"></i> Emails que envía Kairos Burgers</span></div>
       <div class="card-body" style="padding:0">
         {% for icon, title, desc, color in [
-          ('triangle-exclamation', 'Stock bajo', 'Cuando un producto llega al mínimo configurado', '#f59e0b'),
-          ('file-invoice-dollar', 'Nuevo presupuesto', 'Al crear un presupuesto (para admins)', '#6366f1'),
-          ('paper-plane', 'Presupuesto al cliente', 'PDF del presupuesto enviado al email del cliente', '#10b981'),
+          ('triangle-exclamation', 'Stock bajo', 'Cuando un insumo llega al mínimo configurado', '#f59e0b'),
+          ('motorcycle', 'Pedido Rappi', 'Al recibir un pedido nuevo de Rappi', '#FF441F'),
+          ('bicycle', 'Pedido PedidosYa', 'Al recibir un pedido nuevo de PedidosYa', '#FF002D'),
           ('flask', 'Email de prueba', 'Para verificar que la configuración funciona', '#06b6d4')
         ] %}
         <div style="display:flex;gap:.85rem;align-items:flex-start;padding:.9rem 1.25rem;border-bottom:1px solid var(--border)">
