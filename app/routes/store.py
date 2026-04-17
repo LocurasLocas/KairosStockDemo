@@ -35,33 +35,35 @@ def store():
     sort = request.args.get('sort', 'nombre')
     featured_only = request.args.get('featured', '')
 
-    query = db.session.query(Product, ProductStore).join(
-        ProductStore, Product.id == ProductStore.product_id
-    ).filter(Product.is_active == True, ProductStore.visible == True, Product.stock > 0)
-
+    # OuterJoin: show all active products even without a ProductStore record
+    base = Product.query.filter(Product.is_active == True, Product.stock > 0)
     if q:
-        query = query.filter(Product.name.ilike(f'%{q}%'))
+        base = base.filter(Product.name.ilike(f"%{q}%"))
     if cat_id:
-        query = query.filter(Product.category_id == cat_id)
+        base = base.filter(Product.category_id == cat_id)
     if min_price:
-        query = query.filter(Product.price >= float(min_price))
+        base = base.filter(Product.price >= float(min_price))
     if max_price:
-        query = query.filter(Product.price <= float(max_price))
-    if featured_only:
-        query = query.filter(ProductStore.featured == True)
+        base = base.filter(Product.price <= float(max_price))
     if sort == 'precio_asc':
-        query = query.order_by(Product.price.asc())
+        base = base.order_by(Product.price.asc())
     elif sort == 'precio_desc':
-        query = query.order_by(Product.price.desc())
+        base = base.order_by(Product.price.desc())
     else:
-        query = query.order_by(ProductStore.sort_order.asc(), Product.name.asc())
+        base = base.order_by(Product.name.asc())
 
-    results = query.all()
-    categories = Category.query.all()
-    featured = db.session.query(Product, ProductStore).join(
-        ProductStore, Product.id == ProductStore.product_id
-    ).filter(Product.is_active == True, ProductStore.visible == True,
-             ProductStore.featured == True, Product.stock > 0).all()
+    all_prods = base.all()
+    si_map = {si.product_id: si for si in ProductStore.query.all()}
+    results = [(p, si_map.get(p.id)) for p in all_prods
+               if not si_map.get(p.id) or si_map[p.id].visible]
+
+    categories = Category.query.join(Category.products).filter(
+        Product.is_active == True, Product.stock > 0
+    ).distinct().all()
+
+    feat_prods = Product.query.filter(Product.is_active == True, Product.stock > 0).all()
+    featured = [(p, si_map.get(p.id)) for p in feat_prods
+                if si_map.get(p.id) and si_map[p.id].featured]
 
     return render_template('store/store.html',
         cfg=cfg, products=results, categories=categories,
